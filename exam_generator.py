@@ -1,5 +1,5 @@
 import os
-import shutil
+import tempfile
 from tkinter import *
 from tkinter import ttk, filedialog, messagebox
 from openpyxl import load_workbook
@@ -7,19 +7,22 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.units import mm
 from PIL import Image
-import tempfile
 
-# --------------------- إعدادات الخط العربي ---------------------
-# تأكد من وجود ملف خط Cairo في نفس المجلد أو حدد مساره
-FONT_PATH = "Cairo-Regular.ttf"  # حمله من الإنترنت إذا لم يكن موجوداً
+# --------------------- إعدادات الخط العربي (Amiri) ---------------------
+# حمّل ملف Amiri-Regular.ttf من هذا الرابط:
+# https://fonts.google.com/specimen/Amiri
+# ثم ضعه في نفس مجلد ملف Python
+FONT_PATH = "Amiri-Regular.ttf"  # <--- تم التعديل هنا
+
 try:
     pdfmetrics.registerFont(TTFont('ArabicFont', FONT_PATH))
     ARABIC_FONT = 'ArabicFont'
-except:
+    print("✅ تم تحميل خط أميري بنجاح")
+except Exception as e:
     ARABIC_FONT = 'Helvetica'
-    print("⚠️ خط عربي غير موجود، سيستخدم الخط الافتراضي")
+    print(f"⚠️ فشل تحميل خط أميري: {e}")
+    print("⚠️ سيتم استخدام الخط الافتراضي Helvetica")
 
 # --------------------- الوظائف الأساسية ---------------------
 def generate_papers(excel_path, selected_class, selected_subject, exam_name, output_dir):
@@ -56,7 +59,7 @@ def generate_papers(excel_path, selected_class, selected_subject, exam_name, out
         c = canvas.Canvas(pdf_path, pagesize=A4)
         width, height = A4
 
-        # كتابة النص
+        # كتابة النص (باستخدام خط أميري)
         c.setFont(ARABIC_FONT, 22)
         c.drawCentredString(width/2, height-50, f"اسم الطالب: {student_name}")
 
@@ -87,8 +90,8 @@ def generate_papers(excel_path, selected_class, selected_subject, exam_name, out
 class App:
     def __init__(self, root):
         self.root = root
-        root.title("مولد أوراق الامتحان")
-        root.geometry("500x400")
+        root.title("مولد أوراق الامتحان - خط أميري")
+        root.geometry("500x420")
         root.configure(bg='#f0f0f0')
 
         # متغيرات
