@@ -9,6 +9,8 @@ from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from PIL import Image
+import arabic_reshaper
+from bidi.algorithm import get_display
 
 # --------------------- إعدادات الخط العربي ---------------------
 FONT_PATH = "Amiri-Regular.ttf"
@@ -20,6 +22,13 @@ except:
     ARABIC_FONT = 'Helvetica'
     print("⚠️ خط عربي غير موجود، سيستخدم الافتراضي")
 
+# --------------------- دالة إعادة تشكيل النص العربي ---------------------
+def reshape_arabic(text):
+    """إعادة تشكيل النص العربي وعكس اتجاهه للعرض في ReportLab"""
+    reshaped = arabic_reshaper.reshape(text)
+    bidi_text = get_display(reshaped)
+    return bidi_text
+
 # --------------------- الوظيفة الرئيسية ---------------------
 def generate_papers(excel_path, qr_folder, selected_class, selected_subject, output_dir):
     """
@@ -28,6 +37,7 @@ def generate_papers(excel_path, qr_folder, selected_class, selected_subject, out
     - يتم قراءة رقم القيد من العمود A.
     - يتم قراءة اسم الطالب من العمود B.
     - يتم قراءة المواد من الأعمدة E إلى S.
+    - هوامش أعلى وأسفل = 4 ملم.
     """
     # قراءة ملف الإكسيل
     wb = load_workbook(excel_path, data_only=True)
@@ -68,17 +78,23 @@ def generate_papers(excel_path, qr_folder, selected_class, selected_subject, out
     # إنشاء مجلد الإخراج
     os.makedirs(output_dir, exist_ok=True)
 
+    # إعدادات الهوامش (4 ملم أعلى وأسفل)
+    top_margin = 4 * mm
+    bottom_margin = 4 * mm
+    left_margin = 10 * mm  # نترك مسافة يسار ويمين معقولة
+    right_margin = 10 * mm
+
     # إنشاء ملف PDF واحد
     pdf_filename = f"اختبار_{selected_class}_{selected_subject}.pdf"
     pdf_path = os.path.join(output_dir, pdf_filename)
     c = canvas.Canvas(pdf_path, pagesize=A4)
     width, height = A4
 
-    # إعدادات المربعات
+    # إعدادات المربعات في الأسفل
     box_size = 40 * mm
     spacing = 10 * mm
-    y_start = 20 * mm
-    x_start = (width - (box_size * 3 + spacing * 2)) / 2
+    y_start = bottom_margin  # نبدأ من أسفل + 4 ملم
+    x_start = (width - (box_size * 3 + spacing * 2)) / 2  # توسيط المجموعة
 
     # توليد صفحة لكل طالب
     for idx, student in enumerate(students):
@@ -88,11 +104,16 @@ def generate_papers(excel_path, qr_folder, selected_class, selected_subject, out
         student_id = student['id']
         student_name = student['name']
 
-        # ---- أعلى الصفحة ----
+        # ---- أعلى الصفحة (على بعد 4 ملم من الأعلى) ----
+        # جهة اليمين: اسم الطالب ورقم الجلوس
         c.setFont(ARABIC_FONT, 18)
-        c.drawRightString(width - 50, height - 50, f"{student_name}  |  {student_id}")
+        text_right = reshape_arabic(f"{student_name}  |  {student_id}")
+        c.drawRightString(width - right_margin, height - top_margin - 5, text_right)
+
+        # جهة اليسار: اسم المادة (للتذكير)
         c.setFont(ARABIC_FONT, 14)
-        c.drawString(50, height - 50, f"المادة: {selected_subject}")
+        text_subject = reshape_arabic(f"المادة: {selected_subject}")
+        c.drawString(left_margin, height - top_margin - 10, text_subject)
 
         # ---- المربع الأول (أيسر): درجة الطالب (أزرق فاتح) ----
         c.setFillColorRGB(0.9, 0.95, 1.0)
