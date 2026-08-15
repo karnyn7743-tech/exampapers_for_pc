@@ -81,7 +81,7 @@ def generate_papers(excel_path, qr_folder, selected_class, selected_subject, out
     # إعدادات الهوامش (4 ملم أعلى وأسفل)
     top_margin = 4 * mm
     bottom_margin = 4 * mm
-    left_margin = 10 * mm  # نترك مسافة يسار ويمين معقولة
+    left_margin = 10 * mm
     right_margin = 10 * mm
 
     # إنشاء ملف PDF واحد
@@ -93,24 +93,22 @@ def generate_papers(excel_path, qr_folder, selected_class, selected_subject, out
     # إعدادات المربعات في الأسفل
     box_size = 40 * mm
     spacing = 10 * mm
-    y_start = bottom_margin  # نبدأ من أسفل + 4 ملم
-    x_start = (width - (box_size * 3 + spacing * 2)) / 2  # توسيط المجموعة
+    y_start = bottom_margin
+    x_start = (width - (box_size * 3 + spacing * 2)) / 2
 
     # توليد صفحة لكل طالب
     for idx, student in enumerate(students):
         if idx > 0:
-            c.showPage()  # صفحة جديدة
+            c.showPage()
 
         student_id = student['id']
         student_name = student['name']
 
-        # ---- أعلى الصفحة (على بعد 4 ملم من الأعلى) ----
-        # جهة اليمين: اسم الطالب ورقم الجلوس
+        # ---- أعلى الصفحة ----
         c.setFont(ARABIC_FONT, 18)
         text_right = reshape_arabic(f"{student_name}  |  {student_id}")
         c.drawRightString(width - right_margin, height - top_margin - 5, text_right)
 
-        # جهة اليسار: اسم المادة (للتذكير)
         c.setFont(ARABIC_FONT, 14)
         text_subject = reshape_arabic(f"المادة: {selected_subject}")
         c.drawString(left_margin, height - top_margin - 10, text_subject)
@@ -126,9 +124,14 @@ def generate_papers(excel_path, qr_folder, selected_class, selected_subject, out
         qr_path = os.path.join(qr_folder, f"{student_id}.png")
         if os.path.exists(qr_path):
             try:
+                # فتح الصورة وتحويلها إلى RGB إذا لزم الأمر
                 img = Image.open(qr_path)
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                
+                # حفظ مؤقت
                 with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
-                    img.save(tmp.name)
+                    img.save(tmp.name, 'PNG')
                     margin = 5 * mm
                     c.drawImage(tmp.name, x2 + margin, y_start + margin,
                                 width=box_size - 2*margin,
@@ -137,18 +140,19 @@ def generate_papers(excel_path, qr_folder, selected_class, selected_subject, out
                     os.unlink(tmp.name)
             except Exception as e:
                 print(f"⚠️ فشل تحميل QR للطالب {student_id}: {e}")
+                c.setFont('Helvetica', 10)
+                c.drawCentredString(x2 + box_size/2, y_start + box_size/2 - 5, "خطأ في الصورة")
         else:
             c.setFont('Helvetica', 10)
             c.drawCentredString(x2 + box_size/2, y_start + box_size/2 - 5, "QR غير موجود")
 
-        # ---- المربع الثالث (أيمن): كود المادة (رقم العمود) ----
+        # ---- المربع الثالث (أيمن): كود المادة ----
         x3 = x2 + box_size + spacing
         c.rect(x3, y_start, box_size, box_size, stroke=1, fill=0)
         c.setFont(ARABIC_FONT, 20)
-        material_code = selected_col - 4  # E=1, F=2, ...
+        material_code = selected_col - 4
         c.drawCentredString(x3 + box_size/2, y_start + box_size/2 - 5, str(material_code))
 
-    # حفظ الملف
     c.save()
     messagebox.showinfo("نجاح", f"تم توليد {len(students)} ورقة بنجاح في:\n{pdf_path}")
 
@@ -157,10 +161,9 @@ class App:
     def __init__(self, root):
         self.root = root
         root.title("مولد أوراق الامتحانات - الإصدار النهائي")
-        root.geometry("600x400")
+        root.geometry("700x400")
         root.configure(bg='#f0f0f0')
 
-        # متغيرات
         self.excel_path = StringVar()
         self.qr_folder = StringVar()
         self.selected_class = StringVar()
@@ -168,7 +171,6 @@ class App:
         self.classes = []
         self.subjects = []
 
-        # إطار رئيسي
         main_frame = Frame(root, bg='#f0f0f0', padx=20, pady=20)
         main_frame.pack(fill=BOTH, expand=True)
 
@@ -194,7 +196,7 @@ class App:
         self.subject_combo = ttk.Combobox(main_frame, textvariable=self.selected_subject, values=[], state='disabled')
         self.subject_combo.grid(row=3, column=1, sticky='we', padx=5)
 
-        # 5. زر التوليد (أزرق غامق)
+        # 5. زر التوليد
         self.btn_generate = Button(main_frame, text="توليد أوراق الامتحانات", bg='#00008B', fg='white',
                                    font=('Arial', 14), padx=20, pady=10,
                                    command=self.generate, state='disabled')
@@ -208,7 +210,7 @@ class App:
         filename = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx *.xls")])
         if filename:
             self.excel_path.set(filename)
-            self.btn_excel.config(bg='#4CAF50')  # أخضر
+            self.btn_excel.config(bg='#4CAF50')
             self.load_classes_and_subjects()
             self.check_ready()
 
@@ -216,7 +218,7 @@ class App:
         folder = filedialog.askdirectory(title="اختر مجلد qr_pict")
         if folder:
             self.qr_folder.set(folder)
-            self.btn_qr.config(bg='#4CAF50')  # أخضر
+            self.btn_qr.config(bg='#4CAF50')
             self.check_ready()
 
     def load_classes_and_subjects(self):
@@ -227,7 +229,6 @@ class App:
             wb = load_workbook(path, data_only=True)
             sheet = wb.active
 
-            # قراءة الصفوف من العمود Z (index 26) لتعبئة القائمة
             classes = set()
             for row in range(2, sheet.max_row + 1):
                 val = sheet.cell(row, 26).value
@@ -237,7 +238,6 @@ class App:
             self.class_combo['values'] = self.classes
             self.class_combo.config(state='readonly')
 
-            # قراءة المواد من الأعمدة E إلى S
             subjects = []
             for col in range(5, 20):
                 header = sheet.cell(1, col).value
@@ -251,7 +251,6 @@ class App:
             self.log(f"❌ خطأ في قراءة البيانات: {e}")
 
     def check_ready(self):
-        # تفعيل زر التوليد عند توفر الملفات والبيانات
         if (self.excel_path.get() and self.qr_folder.get() and
             self.selected_class.get() and self.selected_subject.get()):
             self.btn_generate.config(state='normal')
@@ -288,18 +287,15 @@ class App:
         self.log_text.see(END)
         self.log_text.config(state='disabled')
 
-    # ربط تغيير القوائم بتفعيل الزر
     def on_class_change(self, event):
         self.check_ready()
 
     def on_subject_change(self, event):
         self.check_ready()
 
-# --------------------- تشغيل التطبيق ---------------------
 if __name__ == "__main__":
     root = Tk()
     app = App(root)
-    # ربط أحداث التغيير في القوائم
     app.class_combo.bind('<<ComboboxSelected>>', app.on_class_change)
     app.subject_combo.bind('<<ComboboxSelected>>', app.on_subject_change)
     root.mainloop()
