@@ -24,6 +24,10 @@ except:
 def generate_papers(excel_path, qr_folder, selected_class, selected_subject, output_dir):
     """
     توليد ملف PDF واحد يحتوي على أوراق جميع طلاب الصف المحدد للمادة المحددة.
+    - يتم تحديد الصف من العمود C.
+    - يتم قراءة رقم القيد من العمود A.
+    - يتم قراءة اسم الطالب من العمود B.
+    - يتم قراءة المواد من الأعمدة E إلى S.
     """
     # قراءة ملف الإكسيل
     wb = load_workbook(excel_path, data_only=True)
@@ -47,13 +51,13 @@ def generate_papers(excel_path, qr_folder, selected_class, selected_subject, out
         messagebox.showerror("خطأ", f"المادة '{selected_subject}' غير موجودة في الأعمدة E إلى S")
         return
 
-    # جمع بيانات الطلاب في الصف المحدد (العمود Z)
+    # جمع بيانات الطلاب في الصف المحدد (من العمود C)
     students = []
     for row in range(2, sheet.max_row + 1):
-        class_val = sheet.cell(row, 26).value  # العمود Z
+        class_val = sheet.cell(row, 3).value  # العمود C
         if class_val and str(class_val).strip() == selected_class:
-            student_id = str(sheet.cell(row, 1).value or '').strip()
-            student_name = str(sheet.cell(row, 2).value or '').strip()
+            student_id = str(sheet.cell(row, 1).value or '').strip()   # العمود A
+            student_name = str(sheet.cell(row, 2).value or '').strip() # العمود B
             if student_id and student_name:
                 students.append({'id': student_id, 'name': student_name})
 
@@ -202,7 +206,7 @@ class App:
             wb = load_workbook(path, data_only=True)
             sheet = wb.active
 
-            # قراءة الصفوف من العمود Z (index 26)
+            # قراءة الصفوف من العمود Z (index 26) لتعبئة القائمة
             classes = set()
             for row in range(2, sheet.max_row + 1):
                 val = sheet.cell(row, 26).value
